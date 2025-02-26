@@ -28,6 +28,10 @@ color_map = {
     'teal': (0, 128, 128), 'charcoal': (70, 70, 70), 'brick red': (165, 42, 42)
 }
 
+# Tetapkan posisi tetap untuk kotak deteksi
+box_size = 50
+center_x, center_y = 320, 240  # Posisi tetap di tengah layar
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -36,17 +40,14 @@ while True:
     # Konversi frame ke HSV untuk deteksi warna yang lebih akurat
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-    # Ambil ukuran frame
-    height, width, _ = frame.shape
-    
-    # Ambil warna tengah layar
-    center_x, center_y = width // 2, height // 2
-    pixel_color = frame[center_y, center_x]
-    pixel_color = np.array(pixel_color).reshape(1, -1)
-    pixel_color_scaled = scaler.transform(pixel_color)
+    # Ambil area kotak untuk deteksi warna
+    roi = frame[center_y-box_size//2:center_y+box_size//2, center_x-box_size//2:center_x+box_size//2]
+    avg_color = np.mean(roi, axis=(0, 1)).astype(int)
+    avg_color = avg_color.reshape(1, -1)
+    avg_color_scaled = scaler.transform(avg_color)
     
     # Prediksi warna dari model Decision Tree
-    predicted_color = dtree.predict(pixel_color_scaled)[0]
+    predicted_color = dtree.predict(avg_color_scaled)[0]
     
     # Perhitungan akurasi
     if predicted_color in color_map:
@@ -54,6 +55,10 @@ while True:
     
     total_predictions += 1
     accuracy = max(0, min((correct_predictions / total_predictions) * 100, 100))  # Jaga dalam rentang 0-100%
+    
+    # Gambar kotak deteksi warna
+    cv2.rectangle(frame, (center_x - box_size//2, center_y - box_size//2), 
+                  (center_x + box_size//2, center_y + box_size//2), (255, 255, 255), 2)
     
     # Tampilkan warna yang terdeteksi dan akurasi
     if predicted_color in color_map:
